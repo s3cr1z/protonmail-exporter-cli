@@ -37,6 +37,7 @@ import (
 	"github.com/ProtonMail/export-tool/internal/telemetry"
 	"github.com/ProtonMail/export-tool/internal/utils"
 	"github.com/ProtonMail/gluon/async"
+	"github.com/ProtonMail/go-proton-api"
 	"github.com/sirupsen/logrus"
 )
 
@@ -224,6 +225,46 @@ func etSessionSendProcessStartTelemetry(
 			logrus.Info("Failed to send session start telemetry")
 		}
 
+		return nil
+	})
+}
+
+//export etSessionGetLabels
+func etSessionGetLabels(ptr *C.etSession, outLabelsText **C.char) C.etSessionStatus {
+	return withSession(ptr, func(ctx context.Context, session *session.Session) error {
+		labels, err := session.GetClient().GetLabels(ctx, proton.LabelTypeSystem, proton.LabelTypeFolder, proton.LabelTypeLabel)
+		if err != nil {
+			return err
+		}
+
+		// Format labels in a user-friendly way
+		var output string
+		output += "System Labels:\n"
+		for _, label := range labels {
+			if label.Type == proton.LabelTypeSystem {
+				output += "  ID: " + label.ID + " | Name: " + label.Name + "\n"
+			}
+		}
+
+		output += "\nFolders:\n"
+		for _, label := range labels {
+			if label.Type == proton.LabelTypeFolder {
+				path := ""
+				if len(label.Path) > 0 {
+					path = label.Path[0] // Use the first path element
+				}
+				output += "  ID: " + label.ID + " | Name: " + label.Name + " | Path: " + path + "\n"
+			}
+		}
+
+		output += "\nLabels:\n"
+		for _, label := range labels {
+			if label.Type == proton.LabelTypeLabel {
+				output += "  ID: " + label.ID + " | Name: " + label.Name + "\n"
+			}
+		}
+
+		*outLabelsText = C.CString(output)
 		return nil
 	})
 }

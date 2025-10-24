@@ -72,8 +72,9 @@ public:
     [[nodiscard]] std::string getHVSolveURL() const;
     [[nodiscard]] LoginState markHVSolved();
 
-    [[nodiscard]] Backup newBackup(const char* exportPath) const;
+    [[nodiscard]] Backup newBackup(const char* exportPath, const char* labelIDs = "") const;
     [[nodiscard]] Restore newRestore(const char* backupPath) const;
+    [[nodiscard]] std::string getLabels() const;
 
     void setUsingDefaultExportPath(const bool usingDefaultExportPath);
     void sendProcessStartTelemetry(bool etOperation, bool etDir, bool etUserPassword, bool etUserMailboxPassword, bool etTotpCode, bool etUserEmail);

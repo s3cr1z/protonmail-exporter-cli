@@ -1,0 +1,51 @@
+feat: Add folder/label filter feature for email export
+
+Implement folder-specific export capability allowing users to export emails
+from specific folders/labels instead of exporting all emails, significantly
+improving efficiency for targeted exports.
+
+Features:
+- Filter export by label IDs (comma-separated)
+- Command-line option: --filter / -f
+- Environment variable: ET_FILTER_LABELS  
+- Full backward compatibility (empty filter = export all)
+- OR logic for multiple labels (message matches any label)
+
+Implementation:
+- Go layer: Added labelIDs parameter to ExportTask and MetadataStage
+- CGO interface: Updated etSessionNewBackup to accept labelIDs string
+- C++ wrapper: Modified Session::newBackup with optional labelIDs parameter
+- CLI: Added --filter option with args/env support
+
+Performance Benefits:
+- Significantly reduced export time for subset exports
+- Lower disk space usage  
+- Faster processing with fewer messages
+
+Documentation:
+- FILTER_EXPORT_USAGE.md: Comprehensive usage guide with examples
+- IMPLEMENTATION_SUMMARY.md: Technical implementation details
+- README.md: Updated with feature description
+
+Testing:
+- Syntax validated with gofmt (all Go files properly formatted)
+- Backward compatible default parameters throughout
+- Maintains existing code structure and workflow
+
+Modified Files:
+- go-lib/internal/mail/export.go
+- go-lib/internal/mail/export_stage_metadata.go
+- go-lib/internal/mail/export_stage_metadata_test.go
+- go-lib/cmd/lib/export_backup.go
+- lib/include/etsession.hpp
+- lib/lib/etsession.cpp
+- cli/bin/tasks/backup_task.hpp
+- cli/bin/tasks/backup_task.cpp
+- cli/bin/main.cpp
+- README.md
+
+New Files:
+- FILTER_EXPORT_USAGE.md
+- IMPLEMENTATION_SUMMARY.md
+
+Branch: dev-windsurf

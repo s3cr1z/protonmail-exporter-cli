@@ -28,6 +28,7 @@ import (
 	"errors"
 	"path/filepath"
 	"runtime/cgo"
+	"strings"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -40,7 +41,7 @@ import (
 )
 
 //export etSessionNewBackup
-func etSessionNewBackup(sessionPtr *C.etSession, cExportPath *C.cchar_t, outBackup **C.etBackup) C.etSessionStatus {
+func etSessionNewBackup(sessionPtr *C.etSession, cExportPath *C.cchar_t, cLabelIDs *C.cchar_t, outBackup **C.etBackup) C.etSessionStatus {
 	cSession, ok := resolveSession(sessionPtr)
 	if !ok {
 		return C.ET_SESSION_STATUS_INVALID
@@ -56,7 +57,20 @@ func etSessionNewBackup(sessionPtr *C.etSession, cExportPath *C.cchar_t, outBack
 	exportPath := C.GoString(cExportPath)
 	exportPath = filepath.Join(exportPath, cSession.s.GetUser().Email)
 
-	mailExport := mail.NewExportTask(cSession.ctx, exportPath, cSession.s)
+	// Parse label IDs from comma-separated string
+	var labelIDs []string
+	if cLabelIDs != nil {
+		labelIDsStr := C.GoString(cLabelIDs)
+		if labelIDsStr != "" {
+			labelIDs = strings.Split(labelIDsStr, ",")
+			// Trim whitespace from each label ID
+			for i := range labelIDs {
+				labelIDs[i] = strings.TrimSpace(labelIDs[i])
+			}
+		}
+	}
+
+	mailExport := mail.NewExportTask(cSession.ctx, exportPath, cSession.s, labelIDs)
 
 	h := internal.NewHandle(&cBackup{
 		csession: cSession,

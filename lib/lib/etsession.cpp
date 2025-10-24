@@ -151,9 +151,9 @@ Session::LoginState Session::getLoginState() const {
     return ls;
 }
 
-Backup Session::newBackup(const char* exportPath) const {
+Backup Session::newBackup(const char* exportPath, const char* labelIDs) const {
     etBackup* exportPtr = nullptr;
-    wrapCCall([&](etSession* ptr) -> etSessionStatus { return etSessionNewBackup(ptr, exportPath, &exportPtr); });
+    wrapCCall([&](etSession* ptr) -> etSessionStatus { return etSessionNewBackup(ptr, exportPath, labelIDs, &exportPtr); });
 
     return Backup(*this, exportPtr);
 }
@@ -163,6 +163,16 @@ Restore Session::newRestore(const char* backupPath) const {
     wrapCCall([&](etSession* ptr) -> etSessionStatus { return etSessionNewRestore(ptr, backupPath, &restorePtr); });
 
     return Restore(*this, restorePtr);
+}
+
+std::string Session::getLabels() const {
+    char* outLabelsJSON = nullptr;
+    wrapCCall([&](etSession* ptr) -> etSessionStatus { return etSessionGetLabels(ptr, &outLabelsJSON); });
+
+    auto result = std::string(outLabelsJSON);
+    etFree(outLabelsJSON);
+
+    return result;
 }
 
 void Session::setUsingDefaultExportPath(const bool usingDefaultExportPath) {

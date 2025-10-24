@@ -36,6 +36,7 @@ type MetadataStage struct {
 	outputCh  chan []proton.MessageMetadata
 	pageSize  int
 	splitSize int
+	labelIDs  []string // Filter messages by these label IDs (empty = no filtering)
 }
 
 func NewMetadataStage(
@@ -43,6 +44,7 @@ func NewMetadataStage(
 	entry *logrus.Entry,
 	pageSize int,
 	splitSize int,
+	labelIDs []string,
 ) *MetadataStage {
 	return &MetadataStage{
 		client:    client,
@@ -50,6 +52,7 @@ func NewMetadataStage(
 		outputCh:  make(chan []proton.MessageMetadata),
 		pageSize:  pageSize,
 		splitSize: splitSize,
+		labelIDs:  labelIDs,
 	}
 }
 
@@ -117,7 +120,13 @@ func (m *MetadataStage) Run(
 				return false
 			}
 
-			return !isPresent
+			// Skip if already present
+			if isPresent {
+				return false
+			}
+
+			// Apply label filter
+			return m.matchesLabelFilter(t)
 		})
 
 		if len(metadata) != initialLen {
@@ -142,4 +151,24 @@ type alwaysMissingMetadataFileChecker struct{}
 
 func (a alwaysMissingMetadataFileChecker) HasMessage(string) (bool, error) {
 	return false, nil
+}
+
+// matchesLabelFilter returns true if the message should be included based on label filter.
+// If labelIDs is empty, all messages match (no filtering).
+// Otherwise, message must have at least one of the requested labelIDs.
+func (m *MetadataStage) matchesLabelFilter(metadata proton.MessageMetadata) bool {
+	if len(m.labelIDs) == 0 {
+		return true // No filter, include all messages
+	}
+
+	// Check if message has any of the requested labels
+	for _, requestedLabel := range m.labelIDs {
+		for _, msgLabel := range metadata.LabelIDs {
+			if msgLabel == requestedLabel {
+				return true
+			}
+		}
+	}
+
+	return false
 }

@@ -522,6 +522,18 @@ int performBackup(etcpp::Session& session, cxxopts::ParseResult const& argParseR
     // Telemetry - we'd like to know whether the user overwrote the default export path
     session.setUsingDefaultExportPath(!pathCameFromArgs && usingDefaultBackupPath);
 
+    // Get filter labels if provided
+    std::string filterLabels;
+    if (argParseResult.count("filter")) {
+        filterLabels = argParseResult["filter"].as<std::string>();
+    } else if (auto* envFilter = std::getenv("ET_FILTER_LABELS")) {
+        filterLabels = envFilter;
+    }
+
+    if (!filterLabels.empty()) {
+        std::cout << "Filtering export by label IDs: " << filterLabels << std::endl;
+    }
+
     std::filesystem::space_info spaceInfo{};
     try {
         spaceInfo = std::filesystem::space(backupPath);
@@ -533,7 +545,7 @@ int performBackup(etcpp::Session& session, cxxopts::ParseResult const& argParseR
 
     std::unique_ptr<BackupTask> backupTask;
     try {
-        backupTask = std::make_unique<BackupTask>(session, backupPath);
+        backupTask = std::make_unique<BackupTask>(session, backupPath, filterLabels.c_str());
     } catch (const etcpp::SessionException& e) {
         etLogError("Failed to create export task: {}", e.what());
         std::cerr << "Failed to create export task: " << e.what() << std::endl;
@@ -662,6 +674,8 @@ int main(int argc, const char** argv) {
             cxxopts::value<std::string>())("t,totp", "User's TOTP 2FA code (can also be set with env var ET_TOTP_CODE)",
                                            cxxopts::value<std::string>())(
             "u,user", "User's account/email (can also be set with env var ET_USER_EMAIL", cxxopts::value<std::string>())(
+            "f,filter", "Filter export by folder/label IDs (comma-separated, can also be set with env var ET_FILTER_LABELS)", cxxopts::value<std::string>())(
+            "l,list-labels", "List available folder/label IDs for filtering (requires login)", cxxopts::value<bool>())(
             "k, telemetry", "Disable anonymous telemetry statistics (can also be set with env var ET_TELEMETRY_OFF)", cxxopts::value<bool>())(
             "h,help", "Show help");
 
@@ -705,6 +719,20 @@ int main(int argc, const char** argv) {
         std::optional<int> exitCode = performLogin(session, argParseResult, appState);
         if (exitCode.has_value()) {
             return *exitCode;
+        }
+
+        // Handle list-labels option
+        if (argParseResult.count("list-labels") && argParseResult["list-labels"].as<bool>()) {
+            try {
+                std::string labelsOutput = session.getLabels();
+                std::cout << "\n" << labelsOutput << std::endl;
+                std::cout << "Use the IDs above with --filter option to export specific folders/labels." << std::endl;
+                std::cout << "Example: --filter \"label-id-1,label-id-2\" --operation backup" << std::endl;
+                return EXIT_SUCCESS;
+            } catch (const etcpp::SessionException& e) {
+                std::cerr << "Failed to retrieve labels: " << e.what() << std::endl;
+                return EXIT_FAILURE;
+            }
         }
 
         std::string operationStr =

@@ -63,12 +63,14 @@ type ExportTask struct {
 	session         *session.Session
 	log             *logrus.Entry
 	cancelledByUser bool
+	labelIDs        []string // Filter export by these label IDs (empty = export all)
 }
 
 func NewExportTask(
 	ctx context.Context,
 	exportPath string,
 	session *session.Session,
+	labelIDs []string,
 ) *ExportTask {
 	exportPath = filepath.Join(exportPath, generateUniqueExportDir())
 
@@ -85,6 +87,7 @@ func NewExportTask(
 		exportDir: exportPath,
 		session:   session,
 		log:       logrus.WithField("export", "mail").WithField("userID", session.GetUser().ID),
+		labelIDs:  labelIDs,
 	}
 }
 
@@ -210,7 +213,7 @@ func (e *ExportTask) Run(ctx context.Context, reporter Reporter) error {
 	}
 
 	// Build stages
-	metaStage := NewMetadataStage(client, e.log, MetadataPageSize, NumParallelDownloads)
+	metaStage := NewMetadataStage(client, e.log, MetadataPageSize, NumParallelDownloads, e.labelIDs)
 	downloadStage := NewDownloadStage(client, NumParallelDownloads, e.log, downloadMemMb, e.session.GetPanicHandler())
 	buildStage := NewBuildStage(NumParallelBuilders, e.log, buildMemMB, e.session.GetPanicHandler(), e.session.GetReporter(), user.ID)
 	writeStage := NewWriteStage(e.tmpDir, e.exportDir, NumParallelWriters, e.log, reporter, e.session.GetPanicHandler())

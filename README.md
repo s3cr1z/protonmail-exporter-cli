@@ -2,6 +2,14 @@
 
 Proton Mail Export allows you to export your emails as eml files.
 
+## Features
+
+- Export all emails or filter by specific folders/labels
+- Support for backup and restore operations
+- Cross-platform support (Linux, Mac, Windows)
+
+For information on using the folder filter feature, see [FILTER_EXPORT_USAGE.md](FILTER_EXPORT_USAGE.md).
+
 # Building
 
 ## Requirements

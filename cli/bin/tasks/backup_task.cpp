@@ -19,8 +19,8 @@
 #include <etsession.hpp>
 #include <iostream>
 
-BackupTask::BackupTask(etcpp::Session& session, const std::filesystem::path& backupPath) :
-    mBackup(session.newBackup(backupPath.u8string().c_str())) {}
+BackupTask::BackupTask(etcpp::Session& session, const std::filesystem::path& backupPath, const char* labelIDs) :
+    mBackup(session.newBackup(backupPath.u8string().c_str(), labelIDs)) {}
 
 void BackupTask::onProgress(float progress) {
     updateProgress(progress);
