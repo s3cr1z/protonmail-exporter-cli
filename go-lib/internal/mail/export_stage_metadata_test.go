@@ -100,13 +100,13 @@ func encodeMetadataExpectations(client *apiclient.MockClient, metadata []proton.
 		Desc: true,
 	}
 
-	for i := 0; i < len(metadata); i += pageSize {
+	for i := 0; i < len(metadata); i += pageSize - 1 {
 		if i == 0 {
 			filter = proton.MessageFilter{
 				Desc: true,
 			}
 		} else {
-			filter.EndID = metadata[i-1].ID
+			filter.EndID = metadata[i].ID
 		}
 
 		if i+pageSize > len(metadata) {
