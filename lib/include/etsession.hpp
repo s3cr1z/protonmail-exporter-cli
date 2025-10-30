@@ -72,7 +72,16 @@ public:
     [[nodiscard]] std::string getHVSolveURL() const;
     [[nodiscard]] LoginState markHVSolved();
 
-    [[nodiscard]] Backup newBackup(const char* exportPath, const char* labelIDs = "") const;
+    [[nodiscard]] Backup newBackup(
+        const char* exportPath,
+        const char* labelIDs = "",
+        const char* sender = "",
+        const char* recipient = "",
+        const char* domain = "",
+        const char* after = "",
+        const char* before = "",
+        const char* subject = ""
+    ) const;
     [[nodiscard]] Restore newRestore(const char* backupPath) const;
     [[nodiscard]] std::string getLabels() const;
 

@@ -36,7 +36,7 @@ type MetadataStage struct {
 	outputCh  chan []proton.MessageMetadata
 	pageSize  int
 	splitSize int
-	labelIDs  []string // Filter messages by these label IDs (empty = no filtering)
+	filter    *Filter // Filter for messages (nil = no filtering)
 }
 
 func NewMetadataStage(
@@ -44,7 +44,7 @@ func NewMetadataStage(
 	entry *logrus.Entry,
 	pageSize int,
 	splitSize int,
-	labelIDs []string,
+	filter *Filter,
 ) *MetadataStage {
 	return &MetadataStage{
 		client:    client,
@@ -52,7 +52,7 @@ func NewMetadataStage(
 		outputCh:  make(chan []proton.MessageMetadata),
 		pageSize:  pageSize,
 		splitSize: splitSize,
-		labelIDs:  labelIDs,
+		filter:    filter,
 	}
 }
 
@@ -68,6 +68,22 @@ func (m *MetadataStage) Run(
 
 	client := m.client
 
+	// Determine filter strategy
+	var serverFilter *proton.MessageFilter
+	needsClientFiltering := false
+
+	if m.filter != nil && !m.filter.IsEmpty() {
+		serverFilter = m.filter.ToServerFilter()
+		needsClientFiltering = m.filter.NeedsClientFiltering()
+
+		if serverFilter != nil {
+			m.log.Info("Using server-side filtering")
+		}
+		if needsClientFiltering {
+			m.log.Info("Using client-side filtering")
+		}
+	}
+
 	var lastMessageID string
 
 	for {
@@ -77,33 +93,32 @@ func (m *MetadataStage) Run(
 
 		var metadata []proton.MessageMetadata
 
-		if lastMessageID != "" {
-			meta, err := client.GetMessageMetadataPage(ctx, 0, m.pageSize, proton.MessageFilter{
-				EndID: lastMessageID,
-				Desc:  true,
-			})
-
-			if err != nil {
-				errReporter.ReportStageError(err)
-				return
-			}
-
-			// * There is only one message returned and it matches the EndID query.
-			if len(meta) != 0 && meta[0].ID == lastMessageID {
-				meta = meta[1:]
-			}
-
-			metadata = meta
+		// Build the message filter for this page
+		var pageFilter proton.MessageFilter
+		if serverFilter != nil {
+			pageFilter = *serverFilter
 		} else {
-			meta, err := client.GetMessageMetadataPage(ctx, 0, m.pageSize, proton.MessageFilter{
+			pageFilter = proton.MessageFilter{
 				Desc: true,
-			})
-			if err != nil {
-				errReporter.ReportStageError(err)
-				return
 			}
-			metadata = meta
 		}
+
+		if lastMessageID != "" {
+			pageFilter.EndID = lastMessageID
+		}
+
+		meta, err := client.GetMessageMetadataPage(ctx, 0, m.pageSize, pageFilter)
+		if err != nil {
+			errReporter.ReportStageError(err)
+			return
+		}
+
+		// If there's only one message and it matches EndID, skip it (pagination overlap)
+		if lastMessageID != "" && len(meta) != 0 && meta[0].ID == lastMessageID {
+			meta = meta[1:]
+		}
+
+		metadata = meta
 
 		// Nothing left to do
 		if len(metadata) == 0 {
@@ -125,8 +140,12 @@ func (m *MetadataStage) Run(
 				return false
 			}
 
-			// Apply label filter
-			return m.matchesLabelFilter(t)
+			// Apply client-side filtering if needed
+			if needsClientFiltering {
+				return m.filter.MatchesMetadata(t)
+			}
+
+			return true
 		})
 
 		if len(metadata) != initialLen {
@@ -151,24 +170,4 @@ type alwaysMissingMetadataFileChecker struct{}
 
 func (a alwaysMissingMetadataFileChecker) HasMessage(string) (bool, error) {
 	return false, nil
-}
-
-// matchesLabelFilter returns true if the message should be included based on label filter.
-// If labelIDs is empty, all messages match (no filtering).
-// Otherwise, message must have at least one of the requested labelIDs.
-func (m *MetadataStage) matchesLabelFilter(metadata proton.MessageMetadata) bool {
-	if len(m.labelIDs) == 0 {
-		return true // No filter, include all messages
-	}
-
-	// Check if message has any of the requested labels
-	for _, requestedLabel := range m.labelIDs {
-		for _, msgLabel := range metadata.LabelIDs {
-			if msgLabel == requestedLabel {
-				return true
-			}
-		}
-	}
-
-	return false
 }
