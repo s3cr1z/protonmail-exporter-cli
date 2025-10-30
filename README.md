@@ -1,14 +1,23 @@
 # Proton Mail Export
 
-Proton Mail Export allows you to export your emails as eml files.
+Proton Mail Export allows you to export your emails in various formats with comprehensive filtering options.
 
 ## Features
 
-- Export all emails or filter by specific folders/labels
-- Support for backup and restore operations
-- Cross-platform support (Linux, Mac, Windows)
+- **Export Formats**: EML (default), MBOX, PDF (Phase 2 - in development)
+- **Comprehensive Filtering**: Filter by labels, senders, recipients, date ranges, and subject keywords
+- **Advanced Filter Logic**: Combine filters with AND/OR logic for precise exports
+- **Cross-platform Support**: Linux, Mac, Windows
+- **Interactive TUI**: Terminal User Interface for guided exports (Phase 3 - in development)
+- **Backup and Restore Operations**: Export and re-import your emails
 
-For information on using the folder filter feature, see [FILTER_EXPORT_USAGE.md](FILTER_EXPORT_USAGE.md).
+For comprehensive information on using filters, see:
+- [ENHANCED_FILTERING_GUIDE.md](ENHANCED_FILTERING_GUIDE.md) - Complete filtering documentation
+- [FILTER_EXPORT_USAGE.md](FILTER_EXPORT_USAGE.md) - Basic label filtering guide
+
+For technical design documentation:
+- [PDF_EXPORT_DESIGN.md](PDF_EXPORT_DESIGN.md) - PDF export feature design (Phase 2)
+- [TUI_DESIGN.md](TUI_DESIGN.md) - Terminal UI design (Phase 3)
 
 # Building
 

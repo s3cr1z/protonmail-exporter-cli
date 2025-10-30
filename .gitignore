@@ -2,4 +2,6 @@
 cmake-build-debug
 cmake-build-release
 .DS_Store
-go-lib/cmd/proton-mail-export/proton-mail-exportgo-lib/internal/constants.go
+go-lib/cmd/proton-mail-export/proton-mail-export
+go-lib/internal/constants.go
+build/
