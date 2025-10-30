@@ -14,6 +14,17 @@ import (
 
 // TestMetadataStage_WithFilters tests filtering integration with MetadataStage
 func TestMetadataStage_WithFilters(t *testing.T) {
+	// Helper to setup common mock expectations
+	setupMockExpectations := func(client *apiclient.MockClient, fileChecker *MockMetadataFileChecker, messages []proton.MessageMetadata) {
+		// First call returns all messages, second call returns empty (end of pagination)
+		client.EXPECT().GetMessageMetadataPage(gomock.Any(), gomock.Eq(0), gomock.Eq(len(messages)), gomock.Any()).
+			Return(messages, nil)
+		client.EXPECT().GetMessageMetadataPage(gomock.Any(), gomock.Eq(0), gomock.Eq(len(messages)), gomock.Any()).
+			Return([]proton.MessageMetadata{}, nil)
+
+		fileChecker.EXPECT().HasMessage(gomock.Any()).AnyTimes().Return(false, nil)
+	}
+
 	t.Run("label filter", func(t *testing.T) {
 		mockCtrl := gomock.NewController(t)
 		client := apiclient.NewMockClient(mockCtrl)
@@ -29,20 +40,17 @@ func TestMetadataStage_WithFilters(t *testing.T) {
 			{ID: "msg4", LabelIDs: []string{"3"}},      // Trash
 		}
 
-		// Setup expectations - return all messages
-		client.EXPECT().GetMessageMetadataPage(gomock.Any(), gomock.Eq(0), gomock.Eq(4), gomock.Any()).
-			Return(allMessages, nil)
-		client.EXPECT().GetMessageMetadataPage(gomock.Any(), gomock.Eq(0), gomock.Eq(4), gomock.Any()).
-			Return([]proton.MessageMetadata{}, nil)
-
-		fileChecker.EXPECT().HasMessage(gomock.Any()).AnyTimes().Return(false, nil)
-		reporter.EXPECT().OnProgress(2) // 2 messages filtered out
+		setupMockExpectations(client, fileChecker, allMessages)
+		
+		// We expect 2 messages to be filtered out (msg2 and msg4)
+		const expectedFilteredCount = 2
+		reporter.EXPECT().OnProgress(expectedFilteredCount)
 
 		// Filter for Inbox only
 		filters := FilterOptions{
 			LabelIDs: []string{"0"},
 		}
-		metadata := NewMetadataStage(client, logrus.WithField("test", "test"), 4, 10, filters)
+		metadata := NewMetadataStage(client, logrus.WithField("test", "test"), len(allMessages), 10, filters)
 
 		go func() {
 			metadata.Run(context.Background(), errReporter, fileChecker, reporter)
@@ -74,20 +82,18 @@ func TestMetadataStage_WithFilters(t *testing.T) {
 			{ID: "msg4", Time: 2500},
 		}
 
-		client.EXPECT().GetMessageMetadataPage(gomock.Any(), gomock.Eq(0), gomock.Eq(4), gomock.Any()).
-			Return(allMessages, nil)
-		client.EXPECT().GetMessageMetadataPage(gomock.Any(), gomock.Eq(0), gomock.Eq(4), gomock.Any()).
-			Return([]proton.MessageMetadata{}, nil)
-
-		fileChecker.EXPECT().HasMessage(gomock.Any()).AnyTimes().Return(false, nil)
-		reporter.EXPECT().OnProgress(2)
+		setupMockExpectations(client, fileChecker, allMessages)
+		
+		// We expect 2 messages to be filtered out (msg1 at 1000 and msg4 at 2500)
+		const expectedFilteredCount = 2
+		reporter.EXPECT().OnProgress(expectedFilteredCount)
 
 		// Filter for messages between 1200 and 2200
 		filters := FilterOptions{
 			After:  1200,
 			Before: 2200,
 		}
-		metadata := NewMetadataStage(client, logrus.WithField("test", "test"), 4, 10, filters)
+		metadata := NewMetadataStage(client, logrus.WithField("test", "test"), len(allMessages), 10, filters)
 
 		go func() {
 			metadata.Run(context.Background(), errReporter, fileChecker, reporter)
@@ -118,19 +124,17 @@ func TestMetadataStage_WithFilters(t *testing.T) {
 			{ID: "msg3", Sender: &mail.Address{Address: "charlie@example.com"}},
 		}
 
-		client.EXPECT().GetMessageMetadataPage(gomock.Any(), gomock.Eq(0), gomock.Eq(3), gomock.Any()).
-			Return(allMessages, nil)
-		client.EXPECT().GetMessageMetadataPage(gomock.Any(), gomock.Eq(0), gomock.Eq(3), gomock.Any()).
-			Return([]proton.MessageMetadata{}, nil)
-
-		fileChecker.EXPECT().HasMessage(gomock.Any()).AnyTimes().Return(false, nil)
-		reporter.EXPECT().OnProgress(2)
+		setupMockExpectations(client, fileChecker, allMessages)
+		
+		// We expect 2 messages to be filtered out (bob and charlie)
+		const expectedFilteredCount = 2
+		reporter.EXPECT().OnProgress(expectedFilteredCount)
 
 		// Filter for alice only
 		filters := FilterOptions{
 			From: []string{"alice@example.com"},
 		}
-		metadata := NewMetadataStage(client, logrus.WithField("test", "test"), 3, 10, filters)
+		metadata := NewMetadataStage(client, logrus.WithField("test", "test"), len(allMessages), 10, filters)
 
 		go func() {
 			metadata.Run(context.Background(), errReporter, fileChecker, reporter)
@@ -160,19 +164,17 @@ func TestMetadataStage_WithFilters(t *testing.T) {
 			{ID: "msg3", Sender: &mail.Address{Address: "admin@example.com"}},
 		}
 
-		client.EXPECT().GetMessageMetadataPage(gomock.Any(), gomock.Eq(0), gomock.Eq(3), gomock.Any()).
-			Return(allMessages, nil)
-		client.EXPECT().GetMessageMetadataPage(gomock.Any(), gomock.Eq(0), gomock.Eq(3), gomock.Any()).
-			Return([]proton.MessageMetadata{}, nil)
-
-		fileChecker.EXPECT().HasMessage(gomock.Any()).AnyTimes().Return(false, nil)
-		reporter.EXPECT().OnProgress(1)
+		setupMockExpectations(client, fileChecker, allMessages)
+		
+		// We expect 1 message to be filtered out (proton.me)
+		const expectedFilteredCount = 1
+		reporter.EXPECT().OnProgress(expectedFilteredCount)
 
 		// Filter for example.com domain
 		filters := FilterOptions{
 			FromDomains: []string{"example.com"},
 		}
-		metadata := NewMetadataStage(client, logrus.WithField("test", "test"), 3, 10, filters)
+		metadata := NewMetadataStage(client, logrus.WithField("test", "test"), len(allMessages), 10, filters)
 
 		go func() {
 			metadata.Run(context.Background(), errReporter, fileChecker, reporter)
@@ -224,13 +226,11 @@ func TestMetadataStage_WithFilters(t *testing.T) {
 			},
 		}
 
-		client.EXPECT().GetMessageMetadataPage(gomock.Any(), gomock.Eq(0), gomock.Eq(4), gomock.Any()).
-			Return(allMessages, nil)
-		client.EXPECT().GetMessageMetadataPage(gomock.Any(), gomock.Eq(0), gomock.Eq(4), gomock.Any()).
-			Return([]proton.MessageMetadata{}, nil)
-
-		fileChecker.EXPECT().HasMessage(gomock.Any()).AnyTimes().Return(false, nil)
-		reporter.EXPECT().OnProgress(3)
+		setupMockExpectations(client, fileChecker, allMessages)
+		
+		// We expect 3 messages to be filtered out (msg2 fails time, msg3 fails sender, msg4 fails label)
+		const expectedFilteredCount = 3
+		reporter.EXPECT().OnProgress(expectedFilteredCount)
 
 		// Filter: Inbox AND before 2000 AND from alice
 		filters := FilterOptions{
@@ -238,7 +238,7 @@ func TestMetadataStage_WithFilters(t *testing.T) {
 			Before:   2000,
 			From:     []string{"alice@example.com"},
 		}
-		metadata := NewMetadataStage(client, logrus.WithField("test", "test"), 4, 10, filters)
+		metadata := NewMetadataStage(client, logrus.WithField("test", "test"), len(allMessages), 10, filters)
 
 		go func() {
 			metadata.Run(context.Background(), errReporter, fileChecker, reporter)
@@ -267,16 +267,11 @@ func TestMetadataStage_WithFilters(t *testing.T) {
 			{ID: "msg3"},
 		}
 
-		client.EXPECT().GetMessageMetadataPage(gomock.Any(), gomock.Eq(0), gomock.Eq(3), gomock.Any()).
-			Return(allMessages, nil)
-		client.EXPECT().GetMessageMetadataPage(gomock.Any(), gomock.Eq(0), gomock.Eq(3), gomock.Any()).
-			Return([]proton.MessageMetadata{}, nil)
+		setupMockExpectations(client, fileChecker, allMessages)
 
-		fileChecker.EXPECT().HasMessage(gomock.Any()).AnyTimes().Return(false, nil)
-
-		// Empty filters - should export all
+		// Empty filters - should export all (no OnProgress call for filtering)
 		filters := FilterOptions{}
-		metadata := NewMetadataStage(client, logrus.WithField("test", "test"), 3, 10, filters)
+		metadata := NewMetadataStage(client, logrus.WithField("test", "test"), len(allMessages), 10, filters)
 
 		go func() {
 			metadata.Run(context.Background(), errReporter, fileChecker, reporter)
