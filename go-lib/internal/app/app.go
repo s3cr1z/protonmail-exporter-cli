@@ -53,6 +53,42 @@ var (
 		Aliases: []string{"f"},
 		EnvVars: []string{"ET_DIR"},
 	}
+	// Filter flags
+	flagLabel = &cli.StringSliceFlag{ //nolint:gochecknoglobals
+		Name:    "label",
+		Usage:   "Filter by label/folder ID (repeatable, OR logic)",
+		EnvVars: []string{"ET_FILTER_LABELS"},
+	}
+	flagAfter = &cli.StringFlag{ //nolint:gochecknoglobals
+		Name:    "after",
+		Usage:   "Filter messages after this date (Unix timestamp, RFC3339, or YYYY-MM-DD)",
+		EnvVars: []string{"ET_FILTER_AFTER"},
+	}
+	flagBefore = &cli.StringFlag{ //nolint:gochecknoglobals
+		Name:    "before",
+		Usage:   "Filter messages before this date (Unix timestamp, RFC3339, or YYYY-MM-DD)",
+		EnvVars: []string{"ET_FILTER_BEFORE"},
+	}
+	flagFrom = &cli.StringSliceFlag{ //nolint:gochecknoglobals
+		Name:    "from",
+		Usage:   "Filter by sender email address (repeatable, OR logic)",
+		EnvVars: []string{"ET_FILTER_FROM"},
+	}
+	flagTo = &cli.StringSliceFlag{ //nolint:gochecknoglobals
+		Name:    "to",
+		Usage:   "Filter by recipient email address (repeatable, OR logic)",
+		EnvVars: []string{"ET_FILTER_TO"},
+	}
+	flagFromDomain = &cli.StringSliceFlag{ //nolint:gochecknoglobals
+		Name:    "from-domain",
+		Usage:   "Filter by sender domain (repeatable, OR logic)",
+		EnvVars: []string{"ET_FILTER_FROM_DOMAIN"},
+	}
+	flagToDomain = &cli.StringSliceFlag{ //nolint:gochecknoglobals
+		Name:    "to-domain",
+		Usage:   "Filter by recipient domain (repeatable, OR logic)",
+		EnvVars: []string{"ET_FILTER_TO_DOMAIN"},
+	}
 )
 
 func Run() {
@@ -77,6 +113,13 @@ func Run() {
 			flagTOTP,
 			flagOperation,
 			flagFolder,
+			flagLabel,
+			flagAfter,
+			flagBefore,
+			flagFrom,
+			flagTo,
+			flagFromDomain,
+			flagToDomain,
 		},
 	}
 
@@ -119,7 +162,7 @@ func run(ctx *cli.Context) error {
 	}
 
 	if operation == operationBackup {
-		return runBackup(ctx.Context, dir, session)
+		return runBackup(ctx, dir, session)
 	}
 
 	if operation == operationRestore {
@@ -249,10 +292,43 @@ func login(ctx *cli.Context, s *session.Session) error {
 	}
 }
 
-func runBackup(ctx context.Context, exportPath string, session *session.Session) error {
-	exportTask := mail.NewExportTask(ctx, exportPath, session)
+func runBackup(cliCtx *cli.Context, exportPath string, session *session.Session) error {
+	// Parse filter options from CLI flags
+	filters, err := parseFilterOptionsFromCLI(cliCtx)
+	if err != nil {
+		return fmt.Errorf("invalid filter options: %w", err)
+	}
+
+	// Log filter summary to user
+	if !filters.IsEmpty() {
+		fmt.Println("\nApplying export filters:")
+		if len(filters.LabelIDs) > 0 {
+			fmt.Printf("  - Labels: %v\n", filters.LabelIDs)
+		}
+		if filters.After != 0 {
+			fmt.Printf("  - After: %v\n", filters.After)
+		}
+		if filters.Before != 0 {
+			fmt.Printf("  - Before: %v\n", filters.Before)
+		}
+		if len(filters.From) > 0 {
+			fmt.Printf("  - From: %v\n", filters.From)
+		}
+		if len(filters.To) > 0 {
+			fmt.Printf("  - To: %v\n", filters.To)
+		}
+		if len(filters.FromDomains) > 0 {
+			fmt.Printf("  - From domains: %v\n", filters.FromDomains)
+		}
+		if len(filters.ToDomains) > 0 {
+			fmt.Printf("  - To domains: %v\n", filters.ToDomains)
+		}
+		fmt.Println()
+	}
+
+	exportTask := mail.NewExportTask(cliCtx.Context, exportPath, session, filters)
 	fmt.Printf("Starting backup - Path=\"%v\"\n", filepath.FromSlash(exportTask.GetExportPath()))
-	err := exportTask.Run(ctx, newCliReporter())
+	err = exportTask.Run(cliCtx.Context, newCliReporter())
 	if err == nil {
 		fmt.Println("Backup finished")
 	}
