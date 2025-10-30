@@ -58,19 +58,20 @@ func etSessionNewBackup(sessionPtr *C.etSession, cExportPath *C.cchar_t, cLabelI
 	exportPath = filepath.Join(exportPath, cSession.s.GetUser().Email)
 
 	// Parse label IDs from comma-separated string
-	var labelIDs []string
+	filters := mail.FilterOptions{}
 	if cLabelIDs != nil {
 		labelIDsStr := C.GoString(cLabelIDs)
 		if labelIDsStr != "" {
-			labelIDs = strings.Split(labelIDsStr, ",")
+			labelIDs := strings.Split(labelIDsStr, ",")
 			// Trim whitespace from each label ID
 			for i := range labelIDs {
 				labelIDs[i] = strings.TrimSpace(labelIDs[i])
 			}
+			filters.LabelIDs = labelIDs
 		}
 	}
 
-	mailExport := mail.NewExportTask(cSession.ctx, exportPath, cSession.s, labelIDs)
+	mailExport := mail.NewExportTask(cSession.ctx, exportPath, cSession.s, filters)
 
 	h := internal.NewHandle(&cBackup{
 		csession: cSession,
