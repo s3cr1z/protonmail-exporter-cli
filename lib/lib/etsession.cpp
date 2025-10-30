@@ -151,9 +151,20 @@ Session::LoginState Session::getLoginState() const {
     return ls;
 }
 
-Backup Session::newBackup(const char* exportPath, const char* labelIDs) const {
+Backup Session::newBackup(
+    const char* exportPath,
+    const char* labelIDs,
+    const char* sender,
+    const char* recipient,
+    const char* domain,
+    const char* after,
+    const char* before,
+    const char* subject
+) const {
     etBackup* exportPtr = nullptr;
-    wrapCCall([&](etSession* ptr) -> etSessionStatus { return etSessionNewBackup(ptr, exportPath, labelIDs, &exportPtr); });
+    wrapCCall([&](etSession* ptr) -> etSessionStatus {
+        return etSessionNewBackup(ptr, exportPath, labelIDs, sender, recipient, domain, after, before, subject, &exportPtr);
+    });
 
     return Backup(*this, exportPtr);
 }

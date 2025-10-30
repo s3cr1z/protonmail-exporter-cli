@@ -19,9 +19,23 @@
 
 #include <etbackup.hpp>
 #include <filesystem>
+#include <string>
 
 #include "tasks/task.hpp"
 #include "tui_util.hpp"
+
+// FilterOptions encapsulates all filter parameters for export
+struct FilterOptions {
+    std::string labelIDs;
+    std::string sender;
+    std::string recipient;
+    std::string domain;
+    std::string after;
+    std::string before;
+    std::string subject;
+
+    FilterOptions() = default;
+};
 
 class BackupTask final : public TaskWithProgress<void>, etcpp::BackupCallback {
 private:
@@ -29,7 +43,9 @@ private:
     CLIProgressBar mProgressBar;
 
 public:
-    BackupTask(etcpp::Session& session, const std::filesystem::path& backupPath, const char* labelIDs = "");
+    BackupTask(etcpp::Session& session, const std::filesystem::path& backupPath, const FilterOptions& filterOptions = FilterOptions());
+    // Backward compatibility constructor
+    BackupTask(etcpp::Session& session, const std::filesystem::path& backupPath, const char* labelIDs);
     ~BackupTask() override = default;
     BackupTask(const BackupTask&) = delete;
     BackupTask(BackupTask&&) = delete;

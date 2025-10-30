@@ -41,7 +41,18 @@ import (
 )
 
 //export etSessionNewBackup
-func etSessionNewBackup(sessionPtr *C.etSession, cExportPath *C.cchar_t, cLabelIDs *C.cchar_t, outBackup **C.etBackup) C.etSessionStatus {
+func etSessionNewBackup(
+	sessionPtr *C.etSession,
+	cExportPath *C.cchar_t,
+	cLabelIDs *C.cchar_t,
+	cSender *C.cchar_t,
+	cRecipient *C.cchar_t,
+	cDomain *C.cchar_t,
+	cAfter *C.cchar_t,
+	cBefore *C.cchar_t,
+	cSubject *C.cchar_t,
+	outBackup **C.etBackup,
+) C.etSessionStatus {
 	cSession, ok := resolveSession(sessionPtr)
 	if !ok {
 		return C.ET_SESSION_STATUS_INVALID
@@ -57,20 +68,30 @@ func etSessionNewBackup(sessionPtr *C.etSession, cExportPath *C.cchar_t, cLabelI
 	exportPath := C.GoString(cExportPath)
 	exportPath = filepath.Join(exportPath, cSession.s.GetUser().Email)
 
-	// Parse label IDs from comma-separated string
-	var labelIDs []string
-	if cLabelIDs != nil {
-		labelIDsStr := C.GoString(cLabelIDs)
-		if labelIDsStr != "" {
-			labelIDs = strings.Split(labelIDsStr, ",")
-			// Trim whitespace from each label ID
-			for i := range labelIDs {
-				labelIDs[i] = strings.TrimSpace(labelIDs[i])
-			}
-		}
+	// Parse filter parameters
+	labelIDs := safeGoString(cLabelIDs)
+	sender := safeGoString(cSender)
+	recipient := safeGoString(cRecipient)
+	domain := safeGoString(cDomain)
+	after := safeGoString(cAfter)
+	before := safeGoString(cBefore)
+	subject := safeGoString(cSubject)
+
+	filter, err := mail.ParseFilterFromStrings(
+		labelIDs,
+		sender,
+		recipient,
+		domain,
+		after,
+		before,
+		subject,
+	)
+	if err != nil {
+		cSession.setLastError(err)
+		return C.ET_SESSION_STATUS_ERROR
 	}
 
-	mailExport := mail.NewExportTask(cSession.ctx, exportPath, cSession.s, labelIDs)
+	mailExport := mail.NewExportTask(cSession.ctx, exportPath, cSession.s, filter)
 
 	h := internal.NewHandle(&cBackup{
 		csession: cSession,
@@ -82,6 +103,14 @@ func etSessionNewBackup(sessionPtr *C.etSession, cExportPath *C.cchar_t, cLabelI
 	*outBackup = (*C.etBackup)(unsafe.Pointer(h)) //nolint:govet
 
 	return C.ET_SESSION_STATUS_OK
+}
+
+// safeGoString safely converts a C string to Go string, handling nil pointers.
+func safeGoString(cStr *C.cchar_t) string {
+	if cStr == nil {
+		return ""
+	}
+	return C.GoString(cStr)
 }
 
 //export etBackupDelete

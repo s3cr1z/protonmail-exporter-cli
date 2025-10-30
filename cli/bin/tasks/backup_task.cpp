@@ -19,6 +19,19 @@
 #include <etsession.hpp>
 #include <iostream>
 
+BackupTask::BackupTask(etcpp::Session& session, const std::filesystem::path& backupPath, const FilterOptions& filterOptions) :
+    mBackup(session.newBackup(
+        backupPath.u8string().c_str(),
+        filterOptions.labelIDs.c_str(),
+        filterOptions.sender.c_str(),
+        filterOptions.recipient.c_str(),
+        filterOptions.domain.c_str(),
+        filterOptions.after.c_str(),
+        filterOptions.before.c_str(),
+        filterOptions.subject.c_str()
+    )) {}
+
+// Backward compatibility constructor
 BackupTask::BackupTask(etcpp::Session& session, const std::filesystem::path& backupPath, const char* labelIDs) :
     mBackup(session.newBackup(backupPath.u8string().c_str(), labelIDs)) {}
 
