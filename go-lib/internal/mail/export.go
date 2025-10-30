@@ -63,14 +63,14 @@ type ExportTask struct {
 	session         *session.Session
 	log             *logrus.Entry
 	cancelledByUser bool
-	labelIDs        []string // Filter export by these label IDs (empty = export all)
+	filters         FilterOptions // Filter export by configured criteria
 }
 
 func NewExportTask(
 	ctx context.Context,
 	exportPath string,
 	session *session.Session,
-	labelIDs []string,
+	filters FilterOptions,
 ) *ExportTask {
 	exportPath = filepath.Join(exportPath, generateUniqueExportDir())
 
@@ -87,7 +87,7 @@ func NewExportTask(
 		exportDir: exportPath,
 		session:   session,
 		log:       logrus.WithField("export", "mail").WithField("userID", session.GetUser().ID),
-		labelIDs:  labelIDs,
+		filters:   filters,
 	}
 }
 
@@ -195,6 +195,9 @@ func (e *ExportTask) Run(ctx context.Context, reporter Reporter) error {
 
 	e.log.Infof("Found %v Messages for download", totalMessageCount)
 
+	// Log active filters
+	e.logActiveFilters()
+
 	reporter.SetMessageTotal(totalMessageCount)
 
 	totalMemory := memory.TotalMemory()
@@ -213,7 +216,7 @@ func (e *ExportTask) Run(ctx context.Context, reporter Reporter) error {
 	}
 
 	// Build stages
-	metaStage := NewMetadataStage(client, e.log, MetadataPageSize, NumParallelDownloads, e.labelIDs)
+	metaStage := NewMetadataStage(client, e.log, MetadataPageSize, NumParallelDownloads, e.filters)
 	downloadStage := NewDownloadStage(client, NumParallelDownloads, e.log, downloadMemMb, e.session.GetPanicHandler())
 	buildStage := NewBuildStage(NumParallelBuilders, e.log, buildMemMB, e.session.GetPanicHandler(), e.session.GetReporter(), user.ID)
 	writeStage := NewWriteStage(e.tmpDir, e.exportDir, NumParallelWriters, e.log, reporter, e.session.GetPanicHandler())
@@ -329,4 +332,42 @@ func toMB(v uint64) uint64 {
 func generateUniqueExportDir() string {
 	const format = "20060102_150405"
 	return "mail_" + time.Now().Format(format)
+}
+
+// logActiveFilters logs information about active filters
+func (e *ExportTask) logActiveFilters() {
+	if e.filters.IsEmpty() {
+		e.log.Info("No filters configured - exporting all messages")
+		return
+	}
+
+	e.log.Info("Active export filters:")
+
+	if len(e.filters.LabelIDs) > 0 {
+		e.log.Infof("  - Label IDs: %v", e.filters.LabelIDs)
+	}
+
+	if e.filters.After != 0 {
+		e.log.Infof("  - After timestamp: %v", e.filters.After)
+	}
+
+	if e.filters.Before != 0 {
+		e.log.Infof("  - Before timestamp: %v", e.filters.Before)
+	}
+
+	if len(e.filters.From) > 0 {
+		e.log.Infof("  - From addresses: %v", e.filters.From)
+	}
+
+	if len(e.filters.To) > 0 {
+		e.log.Infof("  - To addresses: %v", e.filters.To)
+	}
+
+	if len(e.filters.FromDomains) > 0 {
+		e.log.Infof("  - From domains: %v", e.filters.FromDomains)
+	}
+
+	if len(e.filters.ToDomains) > 0 {
+		e.log.Infof("  - To domains: %v", e.filters.ToDomains)
+	}
 }
