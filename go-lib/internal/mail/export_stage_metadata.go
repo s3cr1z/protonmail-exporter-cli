@@ -36,7 +36,7 @@ type MetadataStage struct {
 	outputCh  chan []proton.MessageMetadata
 	pageSize  int
 	splitSize int
-	labelIDs  []string // Filter messages by these label IDs (empty = no filtering)
+	filter    *ExportFilter // Comprehensive filter for messages
 }
 
 func NewMetadataStage(
@@ -44,15 +44,19 @@ func NewMetadataStage(
 	entry *logrus.Entry,
 	pageSize int,
 	splitSize int,
-	labelIDs []string,
+	filter *ExportFilter,
 ) *MetadataStage {
+	if filter == nil {
+		filter = NewExportFilter()
+	}
+
 	return &MetadataStage{
 		client:    client,
 		log:       entry.WithField("stage", "metadata"),
 		outputCh:  make(chan []proton.MessageMetadata),
 		pageSize:  pageSize,
 		splitSize: splitSize,
-		labelIDs:  labelIDs,
+		filter:    filter,
 	}
 }
 
@@ -70,6 +74,9 @@ func (m *MetadataStage) Run(
 
 	var lastMessageID string
 
+	// Use server-side filter if possible
+	serverFilter := m.filter.GetServerSideFilter()
+
 	for {
 		if ctx.Err() != nil {
 			return
@@ -78,10 +85,8 @@ func (m *MetadataStage) Run(
 		var metadata []proton.MessageMetadata
 
 		if lastMessageID != "" {
-			meta, err := client.GetMessageMetadataPage(ctx, 0, m.pageSize, proton.MessageFilter{
-				EndID: lastMessageID,
-				Desc:  true,
-			})
+			serverFilter.EndID = lastMessageID
+			meta, err := client.GetMessageMetadataPage(ctx, 0, m.pageSize, serverFilter)
 
 			if err != nil {
 				errReporter.ReportStageError(err)
@@ -95,9 +100,7 @@ func (m *MetadataStage) Run(
 
 			metadata = meta
 		} else {
-			meta, err := client.GetMessageMetadataPage(ctx, 0, m.pageSize, proton.MessageFilter{
-				Desc: true,
-			})
+			meta, err := client.GetMessageMetadataPage(ctx, 0, m.pageSize, serverFilter)
 			if err != nil {
 				errReporter.ReportStageError(err)
 				return
@@ -125,8 +128,8 @@ func (m *MetadataStage) Run(
 				return false
 			}
 
-			// Apply label filter
-			return m.matchesLabelFilter(t)
+			// Apply comprehensive filter
+			return m.filter.Matches(t)
 		})
 
 		if len(metadata) != initialLen {
@@ -151,24 +154,4 @@ type alwaysMissingMetadataFileChecker struct{}
 
 func (a alwaysMissingMetadataFileChecker) HasMessage(string) (bool, error) {
 	return false, nil
-}
-
-// matchesLabelFilter returns true if the message should be included based on label filter.
-// If labelIDs is empty, all messages match (no filtering).
-// Otherwise, message must have at least one of the requested labelIDs.
-func (m *MetadataStage) matchesLabelFilter(metadata proton.MessageMetadata) bool {
-	if len(m.labelIDs) == 0 {
-		return true // No filter, include all messages
-	}
-
-	// Check if message has any of the requested labels
-	for _, requestedLabel := range m.labelIDs {
-		for _, msgLabel := range metadata.LabelIDs {
-			if msgLabel == requestedLabel {
-				return true
-			}
-		}
-	}
-
-	return false
 }

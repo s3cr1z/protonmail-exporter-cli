@@ -63,14 +63,14 @@ type ExportTask struct {
 	session         *session.Session
 	log             *logrus.Entry
 	cancelledByUser bool
-	labelIDs        []string // Filter export by these label IDs (empty = export all)
+	filter          *ExportFilter // Comprehensive filter for export
 }
 
 func NewExportTask(
 	ctx context.Context,
 	exportPath string,
 	session *session.Session,
-	labelIDs []string,
+	filter *ExportFilter,
 ) *ExportTask {
 	exportPath = filepath.Join(exportPath, generateUniqueExportDir())
 
@@ -78,6 +78,10 @@ func NewExportTask(
 	tmpDir := filepath.Join(exportPath, "temp")
 
 	ctx, cancel := context.WithCancel(ctx)
+
+	if filter == nil {
+		filter = NewExportFilter()
+	}
 
 	return &ExportTask{
 		ctx:       ctx,
@@ -87,7 +91,7 @@ func NewExportTask(
 		exportDir: exportPath,
 		session:   session,
 		log:       logrus.WithField("export", "mail").WithField("userID", session.GetUser().ID),
-		labelIDs:  labelIDs,
+		filter:    filter,
 	}
 }
 
@@ -213,7 +217,7 @@ func (e *ExportTask) Run(ctx context.Context, reporter Reporter) error {
 	}
 
 	// Build stages
-	metaStage := NewMetadataStage(client, e.log, MetadataPageSize, NumParallelDownloads, e.labelIDs)
+	metaStage := NewMetadataStage(client, e.log, MetadataPageSize, NumParallelDownloads, e.filter)
 	downloadStage := NewDownloadStage(client, NumParallelDownloads, e.log, downloadMemMb, e.session.GetPanicHandler())
 	buildStage := NewBuildStage(NumParallelBuilders, e.log, buildMemMB, e.session.GetPanicHandler(), e.session.GetReporter(), user.ID)
 	writeStage := NewWriteStage(e.tmpDir, e.exportDir, NumParallelWriters, e.log, reporter, e.session.GetPanicHandler())

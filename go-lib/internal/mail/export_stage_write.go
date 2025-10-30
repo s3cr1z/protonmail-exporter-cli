@@ -127,6 +127,7 @@ const (
 	MessageWriterTypeDecryptedAndBuilt MessageWriterType = iota
 	MessageWriterTypeFailedToAssemble
 	MessageWriterTypeNoAddrKey
+	MessageWriterTypePDF // PDF export format (Phase 2 - scaffolded)
 )
 
 type MessageWriter interface {
