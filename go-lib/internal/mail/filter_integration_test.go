@@ -14,11 +14,6 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-// Helper function for creating time pointers
-func timePtr(t time.Time) *time.Time {
-	return &t
-}
-
 // TestMetadataStage_WithFilter tests the metadata stage with various filters
 func TestMetadataStage_WithFilter(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
