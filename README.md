@@ -40,7 +40,7 @@ cmake -S. -B $BUILD_DIR -G "Visual Studio 17 2022" -DVCPKG_TARGET_TRIPLET=x64-wi
 cmake --build $BUILD_DIR --config Release
 ```
 
-**Note:** An active internet connection is required in otder to dowload a standalone MingW compiler in order to compile
+**Note:** An active internet connection is required in order to download a standalone MingW compiler in order to compile
 the CGO module.
 
 ## Layout
