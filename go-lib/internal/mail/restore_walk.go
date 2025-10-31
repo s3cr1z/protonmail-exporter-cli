@@ -23,19 +23,22 @@ func (r *RestoreTask) walkBackupDir(fn func(emlPath string)) error {
 			return nil
 		}
 
-		if info.IsDir() && (path != r.backupDir) { // we skip any dir that is not the root dir.
-			return filepath.SkipDir
-		}
-
-		emlPath := filepath.Join(r.backupDir, info.Name())
-		if !strings.HasSuffix(emlPath, emlExtension) {
+		if info.IsDir() {
+			if path != r.backupDir {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 
-		if _, err := os.Stat(emlToMetadataFilename(emlPath)); errors.Is(err, os.ErrNotExist) {
-			logrus.WithField("path", emlPath).Warn("Skipping EML file with no associated metadata file.")
+		// Only process metadata files
+		if !strings.HasSuffix(path, jsonMetadataExtension) {
 			return nil
 		}
+
+		// Convert metadata path to what the EML path would be for compatibility
+		// with existing callers that expect EML paths
+		metadataPath := path
+		emlPath := strings.TrimSuffix(metadataPath, jsonMetadataExtension) + emlExtension
 
 		fn(emlPath)
 
