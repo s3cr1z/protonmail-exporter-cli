@@ -46,7 +46,7 @@ sign(){
 notarize() {
     ditto -ck --keepParent "${APP_PATH}" "${FILE_TO_NOTARIZE}"
 
-    echo -e "\nSubmiting notarization ${FILE_TO_NOTARIZE}..."
+    echo -e "\nSubmitting notarization ${FILE_TO_NOTARIZE}..."
     xcrun notarytool submit \
         "${FILE_TO_NOTARIZE}" \
         --apple-id "${APPLEUID}" --team-id "$APPLETEAMID" --password "${APPLEPASSW}" \
