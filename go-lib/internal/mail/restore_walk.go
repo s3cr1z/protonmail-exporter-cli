@@ -35,10 +35,10 @@ func (r *RestoreTask) walkBackupDir(fn func(emlPath string)) error {
 			return nil
 		}
 
-		// Convert metadata path to what the EML path would be for compatibility
-		// with existing callers that expect EML paths
-		metadataPath := path
-		emlPath := strings.TrimSuffix(metadataPath, jsonMetadataExtension) + emlExtension
+		// Convert metadata path to a synthetic EML path for compatibility with existing callers.
+		// Note: The EML file may not exist on disk for messages that failed to assemble
+		// (stored as directories with body/attachment files instead).
+		emlPath := strings.TrimSuffix(path, jsonMetadataExtension) + emlExtension
 
 		fn(emlPath)
 
