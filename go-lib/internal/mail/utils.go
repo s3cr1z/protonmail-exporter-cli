@@ -27,6 +27,7 @@ import (
 const emlExtension = ".eml"
 const jsonMetadataExtension = ".metadata.json"
 
+// nonSystemLabel returns true if the label is not a system label based on its Type field.
 func nonSystemLabel(label proton.Label) bool {
 	return label.Type != proton.LabelTypeSystem
 }

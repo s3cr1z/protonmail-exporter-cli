@@ -27,17 +27,16 @@ func (r *RestoreTask) walkBackupDir(fn func(emlPath string)) error {
 			return filepath.SkipDir
 		}
 
-		emlPath := filepath.Join(r.backupDir, info.Name())
-		if !strings.HasSuffix(emlPath, emlExtension) {
+		if !strings.HasSuffix(path, emlExtension) {
 			return nil
 		}
 
-		if _, err := os.Stat(emlToMetadataFilename(emlPath)); errors.Is(err, os.ErrNotExist) {
-			logrus.WithField("path", emlPath).Warn("Skipping EML file with no associated metadata file.")
+		if _, err := os.Stat(emlToMetadataFilename(path)); errors.Is(err, os.ErrNotExist) {
+			logrus.WithField("path", path).Warn("Skipping EML file with no associated metadata file.")
 			return nil
 		}
 
-		fn(emlPath)
+		fn(path)
 
 		return nil
 	})
