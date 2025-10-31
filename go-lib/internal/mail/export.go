@@ -2,12 +2,12 @@
 //
 // This file is part of Proton Export Tool.
 //
-// Proton Mail Bridge is Free software: you can redistribute it and/or modify
+// Proton Export Tool is Free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Proton Mail Bridge is distributed in the hope that it will be useful,
+// Proton Export Tool is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
@@ -63,12 +63,14 @@ type ExportTask struct {
 	session         *session.Session
 	log             *logrus.Entry
 	cancelledByUser bool
+	filter          *Filter // Filter for export (nil = export all)
 }
 
 func NewExportTask(
 	ctx context.Context,
 	exportPath string,
 	session *session.Session,
+	filter *Filter,
 ) *ExportTask {
 	exportPath = filepath.Join(exportPath, generateUniqueExportDir())
 
@@ -85,6 +87,7 @@ func NewExportTask(
 		exportDir: exportPath,
 		session:   session,
 		log:       logrus.WithField("export", "mail").WithField("userID", session.GetUser().ID),
+		filter:    filter,
 	}
 }
 
@@ -210,7 +213,7 @@ func (e *ExportTask) Run(ctx context.Context, reporter Reporter) error {
 	}
 
 	// Build stages
-	metaStage := NewMetadataStage(client, e.log, MetadataPageSize, NumParallelDownloads)
+	metaStage := NewMetadataStage(client, e.log, MetadataPageSize, NumParallelDownloads, e.filter)
 	downloadStage := NewDownloadStage(client, NumParallelDownloads, e.log, downloadMemMb, e.session.GetPanicHandler())
 	buildStage := NewBuildStage(NumParallelBuilders, e.log, buildMemMB, e.session.GetPanicHandler(), e.session.GetReporter(), user.ID)
 	writeStage := NewWriteStage(e.tmpDir, e.exportDir, NumParallelWriters, e.log, reporter, e.session.GetPanicHandler())

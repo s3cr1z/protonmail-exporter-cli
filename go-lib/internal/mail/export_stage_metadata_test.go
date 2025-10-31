@@ -27,7 +27,7 @@ func TestMetadataStage_Run(t *testing.T) {
 	encodeMetadataExpectations(client, expected, pageSize)
 	fileChecker.EXPECT().HasMessage(gomock.Any()).AnyTimes().Return(false, nil)
 
-	metadata := NewMetadataStage(client, logrus.WithField("test", "test"), pageSize, 1)
+	metadata := NewMetadataStage(client, logrus.WithField("test", "test"), pageSize, 1, nil)
 
 	go func() {
 		metadata.Run(context.Background(), errReporter, fileChecker, reporter)
@@ -66,7 +66,7 @@ func TestMetadataStage_RunWithCached(t *testing.T) {
 		}
 	}
 
-	metadata := NewMetadataStage(client, logrus.WithField("test", "test"), pageSize, 1)
+	metadata := NewMetadataStage(client, logrus.WithField("test", "test"), pageSize, 1, nil)
 
 	go func() {
 		metadata.Run(context.Background(), errReporter, fileChecker, reporter)
@@ -101,7 +101,11 @@ func encodeMetadataExpectations(client *apiclient.MockClient, metadata []proton.
 	}
 
 	for i := 0; i < len(metadata); i += pageSize - 1 {
-		if i != 0 {
+		if i == 0 {
+			filter = proton.MessageFilter{
+				Desc: true,
+			}
+		} else {
 			filter.EndID = metadata[i].ID
 		}
 

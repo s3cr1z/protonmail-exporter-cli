@@ -2,12 +2,12 @@
 //
 // This file is part of Proton Export Tool.
 //
-// Proton Mail Bridge is free software: you can redistribute it and/or modify
+// Proton Export Tool is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Proton Mail Bridge is distributed in the hope that it will be useful,
+// Proton Export Tool is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
@@ -36,6 +36,7 @@ type MetadataStage struct {
 	outputCh  chan []proton.MessageMetadata
 	pageSize  int
 	splitSize int
+	filter    *Filter // Filter for messages (nil = no filtering)
 }
 
 func NewMetadataStage(
@@ -43,6 +44,7 @@ func NewMetadataStage(
 	entry *logrus.Entry,
 	pageSize int,
 	splitSize int,
+	filter *Filter,
 ) *MetadataStage {
 	return &MetadataStage{
 		client:    client,
@@ -50,6 +52,7 @@ func NewMetadataStage(
 		outputCh:  make(chan []proton.MessageMetadata),
 		pageSize:  pageSize,
 		splitSize: splitSize,
+		filter:    filter,
 	}
 }
 
@@ -65,6 +68,22 @@ func (m *MetadataStage) Run(
 
 	client := m.client
 
+	// Determine filter strategy
+	var serverFilter *proton.MessageFilter
+	needsClientFiltering := false
+
+	if m.filter != nil && !m.filter.IsEmpty() {
+		serverFilter = m.filter.ToServerFilter()
+		needsClientFiltering = m.filter.NeedsClientFiltering()
+
+		if serverFilter != nil {
+			m.log.Info("Using server-side filtering")
+		}
+		if needsClientFiltering {
+			m.log.Info("Using client-side filtering")
+		}
+	}
+
 	var lastMessageID string
 
 	for {
@@ -74,33 +93,32 @@ func (m *MetadataStage) Run(
 
 		var metadata []proton.MessageMetadata
 
-		if lastMessageID != "" {
-			meta, err := client.GetMessageMetadataPage(ctx, 0, m.pageSize, proton.MessageFilter{
-				EndID: lastMessageID,
-				Desc:  true,
-			})
-
-			if err != nil {
-				errReporter.ReportStageError(err)
-				return
-			}
-
-			// * There is only one message returned and it matches the EndID query.
-			if len(meta) != 0 && meta[0].ID == lastMessageID {
-				meta = meta[1:]
-			}
-
-			metadata = meta
+		// Build the message filter for this page
+		var pageFilter proton.MessageFilter
+		if serverFilter != nil {
+			pageFilter = *serverFilter
 		} else {
-			meta, err := client.GetMessageMetadataPage(ctx, 0, m.pageSize, proton.MessageFilter{
+			pageFilter = proton.MessageFilter{
 				Desc: true,
-			})
-			if err != nil {
-				errReporter.ReportStageError(err)
-				return
 			}
-			metadata = meta
 		}
+
+		if lastMessageID != "" {
+			pageFilter.EndID = lastMessageID
+		}
+
+		meta, err := client.GetMessageMetadataPage(ctx, 0, m.pageSize, pageFilter)
+		if err != nil {
+			errReporter.ReportStageError(err)
+			return
+		}
+
+		// If there's only one message and it matches EndID, skip it (pagination overlap)
+		if lastMessageID != "" && len(meta) != 0 && meta[0].ID == lastMessageID {
+			meta = meta[1:]
+		}
+
+		metadata = meta
 
 		// Nothing left to do
 		if len(metadata) == 0 {
@@ -117,7 +135,17 @@ func (m *MetadataStage) Run(
 				return false
 			}
 
-			return !isPresent
+			// Skip if already present
+			if isPresent {
+				return false
+			}
+
+			// Apply client-side filtering if needed
+			if needsClientFiltering {
+				return m.filter.MatchesMetadata(t)
+			}
+
+			return true
 		})
 
 		if len(metadata) != initialLen {

@@ -2,12 +2,12 @@
 //
 // This file is part of Proton Export Tool.
 //
-// Proton Mail Bridge is free software: you can redistribute it and/or modify
+// Proton Export Tool is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Proton Mail Bridge is distributed in the hope that it will be useful,
+// Proton Export Tool is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
@@ -19,8 +19,21 @@
 #include <etsession.hpp>
 #include <iostream>
 
-BackupTask::BackupTask(etcpp::Session& session, const std::filesystem::path& backupPath) :
-    mBackup(session.newBackup(backupPath.u8string().c_str())) {}
+BackupTask::BackupTask(etcpp::Session& session, const std::filesystem::path& backupPath, const FilterOptions& filterOptions) :
+    mBackup(session.newBackup(
+        backupPath.u8string().c_str(),
+        filterOptions.labelIDs.c_str(),
+        filterOptions.sender.c_str(),
+        filterOptions.recipient.c_str(),
+        filterOptions.domain.c_str(),
+        filterOptions.after.c_str(),
+        filterOptions.before.c_str(),
+        filterOptions.subject.c_str()
+    )) {}
+
+// Backward compatibility constructor
+BackupTask::BackupTask(etcpp::Session& session, const std::filesystem::path& backupPath, const char* labelIDs) :
+    mBackup(session.newBackup(backupPath.u8string().c_str(), labelIDs)) {}
 
 void BackupTask::onProgress(float progress) {
     updateProgress(progress);

@@ -2,12 +2,12 @@
 //
 // This file is part of Proton Export Tool.
 //
-// Proton Mail Bridge is free software: you can redistribute it and/or modify
+// Proton Export Tool is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Proton Mail Bridge is distributed in the hope that it will be useful,
+// Proton Export Tool is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
@@ -151,9 +151,20 @@ Session::LoginState Session::getLoginState() const {
     return ls;
 }
 
-Backup Session::newBackup(const char* exportPath) const {
+Backup Session::newBackup(
+    const char* exportPath,
+    const char* labelIDs,
+    const char* sender,
+    const char* recipient,
+    const char* domain,
+    const char* after,
+    const char* before,
+    const char* subject
+) const {
     etBackup* exportPtr = nullptr;
-    wrapCCall([&](etSession* ptr) -> etSessionStatus { return etSessionNewBackup(ptr, exportPath, &exportPtr); });
+    wrapCCall([&](etSession* ptr) -> etSessionStatus {
+        return etSessionNewBackup(ptr, exportPath, labelIDs, sender, recipient, domain, after, before, subject, &exportPtr);
+    });
 
     return Backup(*this, exportPtr);
 }
@@ -163,6 +174,16 @@ Restore Session::newRestore(const char* backupPath) const {
     wrapCCall([&](etSession* ptr) -> etSessionStatus { return etSessionNewRestore(ptr, backupPath, &restorePtr); });
 
     return Restore(*this, restorePtr);
+}
+
+std::string Session::getLabels() const {
+    char* outLabelsJSON = nullptr;
+    wrapCCall([&](etSession* ptr) -> etSessionStatus { return etSessionGetLabels(ptr, &outLabelsJSON); });
+
+    auto result = std::string(outLabelsJSON);
+    etFree(outLabelsJSON);
+
+    return result;
 }
 
 void Session::setUsingDefaultExportPath(const bool usingDefaultExportPath) {

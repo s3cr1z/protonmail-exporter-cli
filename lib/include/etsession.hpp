@@ -2,12 +2,12 @@
 //
 // This file is part of Proton Export Tool.
 //
-// Proton Mail Bridge is free software: you can redistribute it and/or modify
+// Proton Export Tool is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Proton Mail Bridge is distributed in the hope that it will be useful,
+// Proton Export Tool is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
@@ -72,8 +72,18 @@ public:
     [[nodiscard]] std::string getHVSolveURL() const;
     [[nodiscard]] LoginState markHVSolved();
 
-    [[nodiscard]] Backup newBackup(const char* exportPath) const;
+    [[nodiscard]] Backup newBackup(
+        const char* exportPath,
+        const char* labelIDs = "",
+        const char* sender = "",
+        const char* recipient = "",
+        const char* domain = "",
+        const char* after = "",
+        const char* before = "",
+        const char* subject = ""
+    ) const;
     [[nodiscard]] Restore newRestore(const char* backupPath) const;
+    [[nodiscard]] std::string getLabels() const;
 
     void setUsingDefaultExportPath(const bool usingDefaultExportPath);
     void sendProcessStartTelemetry(bool etOperation, bool etDir, bool etUserPassword, bool etUserMailboxPassword, bool etTotpCode, bool etUserEmail);

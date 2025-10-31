@@ -2,12 +2,12 @@
 //
 // This file is part of Proton Export Tool.
 //
-// Proton Mail Bridge is free software: you can redistribute it and/or modify
+// Proton Export Tool is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Proton Mail Bridge is distributed in the hope that it will be useful,
+// Proton Export Tool is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
@@ -267,7 +267,7 @@ std::filesystem::path getOutputPath() {
         execPath = etcpp::getExecutableDir();
     } catch (const std::exception& e) {
         std::cerr << "Failed to get executable directory: " << e.what() << std::endl;
-        std::cerr << "Will user working directory instead" << std::endl;
+        std::cerr << "Will use working directory instead" << std::endl;
     }
 
     return execPath;
@@ -511,6 +511,17 @@ std::optional<int> performLogin(etcpp::Session& session, cxxopts::ParseResult& a
 }
 
 
+// Helper function to get filter option from args or environment
+std::string getFilterOption(cxxopts::ParseResult const& argParseResult, const char* argName, const char* envName) {
+    if (argParseResult.count(argName)) {
+        return argParseResult[argName].as<std::string>();
+    }
+    if (auto* envVal = std::getenv(envName)) {
+        return envVal;
+    }
+    return "";
+}
+
 int performBackup(etcpp::Session& session, cxxopts::ParseResult const& argParseResult, CLIAppState const& appState) {
     bool pathCameFromArgs = false;
     bool usingDefaultBackupPath = true;
@@ -521,6 +532,57 @@ int performBackup(etcpp::Session& session, cxxopts::ParseResult const& argParseR
 
     // Telemetry - we'd like to know whether the user overwrote the default export path
     session.setUsingDefaultExportPath(!pathCameFromArgs && usingDefaultBackupPath);
+
+    // Get all filter options
+    FilterOptions filterOptions;
+    
+    // Handle backward compatibility: --filter/-f maps to --label
+    if (argParseResult.count("filter")) {
+        filterOptions.labelIDs = argParseResult["filter"].as<std::string>();
+    } else {
+        filterOptions.labelIDs = getFilterOption(argParseResult, "label", "ET_FILTER_LABELS");
+    }
+    
+    filterOptions.sender = getFilterOption(argParseResult, "from", "ET_FILTER_FROM");
+    filterOptions.recipient = getFilterOption(argParseResult, "to", "ET_FILTER_TO");
+    filterOptions.domain = getFilterOption(argParseResult, "domain", "ET_FILTER_DOMAIN");
+    filterOptions.after = getFilterOption(argParseResult, "after", "ET_FILTER_AFTER");
+    filterOptions.before = getFilterOption(argParseResult, "before", "ET_FILTER_BEFORE");
+    filterOptions.subject = getFilterOption(argParseResult, "subject", "ET_FILTER_SUBJECT");
+
+    // Display active filters
+    bool hasFilters = false;
+    if (!filterOptions.labelIDs.empty()) {
+        std::cout << "Filtering by labels: " << filterOptions.labelIDs << std::endl;
+        hasFilters = true;
+    }
+    if (!filterOptions.sender.empty()) {
+        std::cout << "Filtering by sender: " << filterOptions.sender << std::endl;
+        hasFilters = true;
+    }
+    if (!filterOptions.recipient.empty()) {
+        std::cout << "Filtering by recipient: " << filterOptions.recipient << std::endl;
+        hasFilters = true;
+    }
+    if (!filterOptions.domain.empty()) {
+        std::cout << "Filtering by domain: " << filterOptions.domain << std::endl;
+        hasFilters = true;
+    }
+    if (!filterOptions.after.empty()) {
+        std::cout << "Filtering messages after: " << filterOptions.after << std::endl;
+        hasFilters = true;
+    }
+    if (!filterOptions.before.empty()) {
+        std::cout << "Filtering messages before: " << filterOptions.before << std::endl;
+        hasFilters = true;
+    }
+    if (!filterOptions.subject.empty()) {
+        std::cout << "Filtering by subject: " << filterOptions.subject << std::endl;
+        hasFilters = true;
+    }
+    if (hasFilters) {
+        std::cout << std::endl;
+    }
 
     std::filesystem::space_info spaceInfo{};
     try {
@@ -533,7 +595,7 @@ int performBackup(etcpp::Session& session, cxxopts::ParseResult const& argParseR
 
     std::unique_ptr<BackupTask> backupTask;
     try {
-        backupTask = std::make_unique<BackupTask>(session, backupPath);
+        backupTask = std::make_unique<BackupTask>(session, backupPath, filterOptions);
     } catch (const etcpp::SessionException& e) {
         etLogError("Failed to create export task: {}", e.what());
         std::cerr << "Failed to create export task: " << e.what() << std::endl;
@@ -661,9 +723,25 @@ int main(int argc, const char** argv) {
             "m,mbox-password", "User's mailbox password when using 2 Password Mode (can also be set with env var ET_USER_MAILBOX_PASSWORD)",
             cxxopts::value<std::string>())("t,totp", "User's TOTP 2FA code (can also be set with env var ET_TOTP_CODE)",
                                            cxxopts::value<std::string>())(
-            "u,user", "User's account/email (can also be set with env var ET_USER_EMAIL", cxxopts::value<std::string>())(
+            "u,user", "User's account/email (can also be set with env var ET_USER_EMAIL", cxxopts::value<std::string>());
+
+        // Filtering options
+        options.add_options("Filtering")(
+            "label", "Filter by folder/label IDs (comma-separated, env: ET_FILTER_LABELS)", cxxopts::value<std::string>())(
+            "from", "Filter by sender email/domain (comma-separated, env: ET_FILTER_FROM)", cxxopts::value<std::string>())(
+            "to", "Filter by recipient email/domain (comma-separated, env: ET_FILTER_TO)", cxxopts::value<std::string>())(
+            "domain", "Filter by domain in sender or recipient (comma-separated, env: ET_FILTER_DOMAIN)", cxxopts::value<std::string>())(
+            "after", "Filter messages after date (YYYY-MM-DD, env: ET_FILTER_AFTER)", cxxopts::value<std::string>())(
+            "before", "Filter messages before date (YYYY-MM-DD, env: ET_FILTER_BEFORE)", cxxopts::value<std::string>())(
+            "subject", "Filter by subject substring (case-insensitive, env: ET_FILTER_SUBJECT)", cxxopts::value<std::string>())(
+            "l,list-labels", "List available folder/label IDs for filtering (requires login)", cxxopts::value<bool>());
+
+        options.add_options()(
             "k, telemetry", "Disable anonymous telemetry statistics (can also be set with env var ET_TELEMETRY_OFF)", cxxopts::value<bool>())(
             "h,help", "Show help");
+
+        // Maintain backward compatibility with old --filter/-f flag (maps to --label)
+        options.add_options()("f,filter", "Deprecated: use --label instead", cxxopts::value<std::string>());
 
         auto argParseResult = options.parse(argc, argv);
 
@@ -705,6 +783,20 @@ int main(int argc, const char** argv) {
         std::optional<int> exitCode = performLogin(session, argParseResult, appState);
         if (exitCode.has_value()) {
             return *exitCode;
+        }
+
+        // Handle list-labels option
+        if (argParseResult.count("list-labels") && argParseResult["list-labels"].as<bool>()) {
+            try {
+                std::string labelsOutput = session.getLabels();
+                std::cout << "\n" << labelsOutput << std::endl;
+                std::cout << "Use the IDs above with --filter option to export specific folders/labels." << std::endl;
+                std::cout << "Example: --filter \"label-id-1,label-id-2\" --operation backup" << std::endl;
+                return EXIT_SUCCESS;
+            } catch (const etcpp::SessionException& e) {
+                std::cerr << "Failed to retrieve labels: " << e.what() << std::endl;
+                return EXIT_FAILURE;
+            }
         }
 
         std::string operationStr =

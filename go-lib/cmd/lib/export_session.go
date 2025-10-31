@@ -2,12 +2,12 @@
 //
 // This file is part of Proton Export Tool.
 //
-// Proton Mail Bridge is free software: you can redistribute it and/or modify
+// Proton Export Tool is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// Proton Mail Bridge is distributed in the hope that it will be useful,
+// Proton Export Tool is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
@@ -37,6 +37,7 @@ import (
 	"github.com/ProtonMail/export-tool/internal/telemetry"
 	"github.com/ProtonMail/export-tool/internal/utils"
 	"github.com/ProtonMail/gluon/async"
+	"github.com/ProtonMail/go-proton-api"
 	"github.com/sirupsen/logrus"
 )
 
@@ -224,6 +225,46 @@ func etSessionSendProcessStartTelemetry(
 			logrus.Info("Failed to send session start telemetry")
 		}
 
+		return nil
+	})
+}
+
+//export etSessionGetLabels
+func etSessionGetLabels(ptr *C.etSession, outLabelsText **C.char) C.etSessionStatus {
+	return withSession(ptr, func(ctx context.Context, session *session.Session) error {
+		labels, err := session.GetClient().GetLabels(ctx, proton.LabelTypeSystem, proton.LabelTypeFolder, proton.LabelTypeLabel)
+		if err != nil {
+			return err
+		}
+
+		// Format labels in a user-friendly way
+		var output string
+		output += "System Labels:\n"
+		for _, label := range labels {
+			if label.Type == proton.LabelTypeSystem {
+				output += "  ID: " + label.ID + " | Name: " + label.Name + "\n"
+			}
+		}
+
+		output += "\nFolders:\n"
+		for _, label := range labels {
+			if label.Type == proton.LabelTypeFolder {
+				path := ""
+				if len(label.Path) > 0 {
+					path = label.Path[0] // Use the first path element
+				}
+				output += "  ID: " + label.ID + " | Name: " + label.Name + " | Path: " + path + "\n"
+			}
+		}
+
+		output += "\nLabels:\n"
+		for _, label := range labels {
+			if label.Type == proton.LabelTypeLabel {
+				output += "  ID: " + label.ID + " | Name: " + label.Name + "\n"
+			}
+		}
+
+		*outLabelsText = C.CString(output)
 		return nil
 	})
 }
