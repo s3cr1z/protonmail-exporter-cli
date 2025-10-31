@@ -21,6 +21,7 @@
 #include <filesystem>
 
 void createTestBackup(std::filesystem::path const& dir); ///< Create a test backup in the specified folder
-void addSkippedAndFailingMessages(std::filesystem::path const &dir); /// Add a message that will be skipped and a message that will fail to an existing backup.
+void addSkippedAndFailingMessages(std::filesystem::path const &dir); ///< Add a message that will be skipped and a message that will fail to an existing backup.
+void addBoundaryConditionTests(std::filesystem::path const &dir); ///< Add boundary condition test cases for edge cases like long subjects, empty bodies, and unicode content.
 
 #endif //EXPORTED_DATA_H
