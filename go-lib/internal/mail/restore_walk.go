@@ -23,7 +23,10 @@ func (r *RestoreTask) walkBackupDir(fn func(emlPath string)) error {
 			return nil
 		}
 
-		if info.IsDir() && (path != r.backupDir) { // we skip any dir that is not the root dir.
+		// Skip subdirectories - backup structure is flat (all .eml files in r.backupDir).
+		// If backup is in a timestamped subdirectory (mail_YYYYMMDD_HHMMSS), the validation
+		// logic updates r.backupDir to point to that subdirectory before calling this function.
+		if info.IsDir() && (path != r.backupDir) {
 			return filepath.SkipDir
 		}
 

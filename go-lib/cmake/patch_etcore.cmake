@@ -1,7 +1,7 @@
 #
-# Patch Genated CGO header so it's compatible with MSVC C++17
+# Patch Generated CGO header so it's compatible with MSVC C++17
 #
-# Usage cmake -P <scritp> <path_to_header>
+# Usage cmake -P <script> <path_to_header>
 #
 
 set(header "${CMAKE_ARGV3}")

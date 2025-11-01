@@ -70,9 +70,9 @@ func emlToMetadataFilename(emlPath string) string {
 
 // isSystemLabel returns true if the label is a built-in label (Inbox, All Mail, etc...).
 func isSystemLabel(labelID string) bool {
-	// At the moment system folder are reported as regular folders by backend unless client is Bridge or Web.
+	// At the moment system folders are reported as regular folders by backend unless client is Bridge or Web.
 	// A new version of the route will correct the issue (IMEX-36). For the time being, we consider a label to be
-	// system if its ID is an integer. Others labels have a base64 encoded ID.
+	// system if its ID is an integer. Other labels have a base64 encoded ID.
 	_, err := strconv.Atoi(labelID)
 	return err == nil
 }
