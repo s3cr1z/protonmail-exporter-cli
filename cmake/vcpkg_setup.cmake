@@ -17,4 +17,25 @@ if (APPLE)
     endif ()
 endif()
 
-set(CMAKE_TOOLCHAIN_FILE "${CMAKE_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake")
+set(_vcpkg_toolchain "${CMAKE_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake")
+
+# Ensure the vcpkg submodule is available so that CodeQL and other automated
+# environments that perform a shallow checkout can still configure the project.
+if (NOT EXISTS "${_vcpkg_toolchain}")
+    execute_process(
+        COMMAND git submodule update --init --depth 1 --recursive vcpkg
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        RESULT_VARIABLE _vcpkg_submodule_result
+        ERROR_QUIET
+    )
+
+    if (NOT _vcpkg_submodule_result EQUAL 0)
+        message(WARNING "Failed to initialise vcpkg submodule (exit code ${_vcpkg_submodule_result}).")
+    endif ()
+endif ()
+
+if (EXISTS "${_vcpkg_toolchain}")
+    set(CMAKE_TOOLCHAIN_FILE "${_vcpkg_toolchain}")
+else ()
+    message(WARNING "vcpkg toolchain file not found; continuing without vcpkg integration.")
+endif ()
