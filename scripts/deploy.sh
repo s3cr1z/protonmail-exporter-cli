@@ -54,7 +54,7 @@ parse_and_validate_input() {
 
     ET_TAG=$1
     if ! [[ "$ET_TAG" =~ ^et-[0-9]{3}$ ]]; then
-        error "arg 1: expected et tag, but have '$IDA_TAG'"
+        error "arg 1: expected et tag, but have '$ET_TAG'"
         return 1
     fi
 

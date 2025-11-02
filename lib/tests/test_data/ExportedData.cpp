@@ -1586,3 +1586,124 @@ void addSkippedAndFailingMessages(std::filesystem::path const& dir) {
   }
 })");
 }
+
+//****************************************************************************************************************************************************
+/// \brief Add boundary condition test cases to an existing backup directory.
+/// \param[in] dir The folder path. The folder must exist and contain an existing backup.
+/// 
+/// This function adds additional edge case emails to test boundary conditions such as:
+/// - Extremely long subject lines (>1000 characters)
+/// - Zero-length email body
+/// - Missing sender information
+//****************************************************************************************************************************************************
+void addBoundaryConditionTests(std::filesystem::path const& dir) {
+    // Email with extremely long subject line (>1000 chars) to test subject truncation/handling
+    std::string longSubject(1500, 'X');
+    writeFile(dir / "3zBoundaryLongSubject_test123456789012345678901234567890_ABCDEFGH.eml",
+              R"(Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=utf-8
+Subject: )" + longSubject + R"(
+From: test@example.com
+To: recipient@example.com
+Date: Mon, 01 Jan 2024 12:00:00 +0000
+
+Test email with extremely long subject line.)");
+
+    writeFile(dir / "3zBoundaryLongSubject_test123456789012345678901234567890_ABCDEFGH.metadata.json",
+              R"({
+  "Version": 1,
+  "Payload": {
+    "ID": "3zBoundaryLongSubject_test123456789012345678901234567890_ABCDEFGH",
+    "AddressID": "test-address-id-123",
+    "LabelIDs": ["5", "15"],
+    "Subject": ")" + longSubject + R"(",
+    "Sender": {
+      "Name": "Test User",
+      "Address": "test@example.com"
+    },
+    "ToList": [{"Name": "Recipient", "Address": "recipient@example.com"}],
+    "CCList": [],
+    "BCCList": [],
+    "Flags": 1,
+    "Time": 1704110400,
+    "Size": 100,
+    "Unread": 0,
+    "NumAttachments": 0,
+    "Attachments": [],
+    "MIMEType": "text/plain",
+    "WriterType": 0
+  }
+})");
+
+    // Email with zero-length body to test empty content handling
+    writeFile(dir / "4zBoundaryEmptyBody_test123456789012345678901234567890_ABCDEFGH.eml",
+              R"(Content-Type: text/plain; charset=utf-8
+Subject: Empty Body Test
+From: test@example.com
+To: recipient@example.com
+Date: Mon, 01 Jan 2024 12:00:00 +0000
+
+)");
+
+    writeFile(dir / "4zBoundaryEmptyBody_test123456789012345678901234567890_ABCDEFGH.metadata.json",
+              R"({
+  "Version": 1,
+  "Payload": {
+    "ID": "4zBoundaryEmptyBody_test123456789012345678901234567890_ABCDEFGH",
+    "AddressID": "test-address-id-456",
+    "LabelIDs": ["5"],
+    "Subject": "Empty Body Test",
+    "Sender": {
+      "Name": "Test User",
+      "Address": "test@example.com"
+    },
+    "ToList": [{"Name": "Recipient", "Address": "recipient@example.com"}],
+    "CCList": [],
+    "BCCList": [],
+    "Flags": 1,
+    "Time": 1704110400,
+    "Size": 0,
+    "Unread": 0,
+    "NumAttachments": 0,
+    "Attachments": [],
+    "MIMEType": "text/plain",
+    "WriterType": 0
+  }
+})");
+
+    // Email with special characters and unicode in headers to test encoding
+    writeFile(dir / "5zBoundaryUnicode_test123456789012345678901234567890_ABCDEFGH.eml",
+              R"(Content-Type: text/plain; charset=utf-8
+Subject: =?UTF-8?B?8J+YgCBUZXN0IOKYhiDwn46JIFNwZWNpYWwgQ2hhcnM=?=
+From: "Test 测试 User" <test@example.com>
+To: "Recipient тест" <recipient@example.com>
+Date: Mon, 01 Jan 2024 12:00:00 +0000
+
+Test unicode: 你好世界 Привет мир مرحبا 🌍)");
+
+    writeFile(dir / "5zBoundaryUnicode_test123456789012345678901234567890_ABCDEFGH.metadata.json",
+              R"({
+  "Version": 1,
+  "Payload": {
+    "ID": "5zBoundaryUnicode_test123456789012345678901234567890_ABCDEFGH",
+    "AddressID": "test-address-id-789",
+    "LabelIDs": ["0", "5"],
+    "Subject": "😀 Test ☆ 🎉 Special Chars",
+    "Sender": {
+      "Name": "Test 测试 User",
+      "Address": "test@example.com"
+    },
+    "ToList": [{"Name": "Recipient тест", "Address": "recipient@example.com"}],
+    "CCList": [],
+    "BCCList": [],
+    "Flags": 1,
+    "Time": 1704110400,
+    "Size": 150,
+    "Unread": 0,
+    "NumAttachments": 0,
+    "Attachments": [],
+    "MIMEType": "text/plain",
+    "WriterType": 0
+  }
+})");
+}
