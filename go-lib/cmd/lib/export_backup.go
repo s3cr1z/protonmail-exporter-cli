@@ -28,7 +28,6 @@ import (
 	"errors"
 	"path/filepath"
 	"runtime/cgo"
-	"strings"
 	"sync/atomic"
 	"time"
 	"unsafe"

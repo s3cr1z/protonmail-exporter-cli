@@ -250,7 +250,7 @@ func login(ctx *cli.Context, s *session.Session) error {
 }
 
 func runBackup(ctx context.Context, exportPath string, session *session.Session) error {
-	exportTask := mail.NewExportTask(ctx, exportPath, session)
+	exportTask := mail.NewExportTask(ctx, exportPath, session, nil)
 	fmt.Printf("Starting backup - Path=\"%v\"\n", filepath.FromSlash(exportTask.GetExportPath()))
 	err := exportTask.Run(ctx, newCliReporter())
 	if err == nil {

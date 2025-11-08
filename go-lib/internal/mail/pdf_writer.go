@@ -26,20 +26,20 @@ package mail
 type PDFMessageWriter interface {
 	// WriteMessage writes a message to a PDF file.
 	// Returns the path to the created PDF file and any error.
-	WriteMessage(msg Message) (string, error)
+	WriteMessage(msg PDFMessage) (string, error)
 
 	// WriteBatch writes multiple messages to a single or multiple PDF files.
 	// The exact behavior (one PDF per message vs combined PDF) will be determined
 	// based on the configuration.
-	WriteBatch(messages []Message) ([]string, error)
+	WriteBatch(messages []PDFMessage) ([]string, error)
 
 	// Close finalizes any pending writes and cleans up resources.
 	Close() error
 }
 
-// Message represents a complete email message for PDF export.
+// PDFMessage represents a complete email message for PDF export.
 // This is a placeholder type that will be properly defined when PDF export is implemented.
-type Message struct {
+type PDFMessage struct {
 	ID          string
 	Subject     string
 	From        string
