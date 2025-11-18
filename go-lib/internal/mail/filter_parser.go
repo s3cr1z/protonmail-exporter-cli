@@ -54,11 +54,13 @@ func (FilterParser) ParseDate(s string) (*time.Time, error) {
 	}
 
 	formats := []string{
+		"2006-01-02 15:04:05",
+		"2006-01-02 15:04",
 		"2006-01-02",
+		"2006/01/02 15:04:05",
+		"2006/01/02 15:04",
 		"2006/01/02",
 		"20060102",
-		"2006-01-02 15:04:05",
-		"2006/01/02 15:04:05",
 	}
 
 	for _, format := range formats {
@@ -67,7 +69,7 @@ func (FilterParser) ParseDate(s string) (*time.Time, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("invalid date format: %s (expected YYYY-MM-DD, YYYY/MM/DD, or YYYYMMDD)", s)
+	return nil, fmt.Errorf("invalid date format: %s (expected YYYY-MM-DD, YYYY/MM/DD, YYYYMMDD with optional HH:MM:SS)", s)
 }
 
 // ParseFilterFromStrings creates a Filter from string parameters.

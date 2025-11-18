@@ -96,6 +96,12 @@ func TestFilterParser_ParseDate(t *testing.T) {
 			expectNil: false,
 			wantErr:   true,
 		},
+		{
+			name:      "YYYY-MM-DD HH:MM format",
+			input:     "2024-01-15 10:30",
+			expectNil: false,
+			wantErr:   false,
+		},
 	}
 
 	for _, tt := range tests {
