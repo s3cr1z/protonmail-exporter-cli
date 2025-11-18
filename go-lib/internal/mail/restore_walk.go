@@ -23,22 +23,22 @@ func (r *RestoreTask) walkBackupDir(fn func(emlPath string)) error {
 			return nil
 		}
 
-		// Skip subdirectories - backup structure is flat (all .eml files in r.backupDir).
-		// If backup is in a timestamped subdirectory (mail_YYYYMMDD_HHMMSS), the validation
-		// logic updates r.backupDir to point to that subdirectory before calling this function.
-		if info.IsDir() && (path != r.backupDir) {
-			return filepath.SkipDir
-		}
-
-		emlPath := filepath.Join(r.backupDir, info.Name())
-		if !strings.HasSuffix(emlPath, emlExtension) {
+		if info.IsDir() {
+			if path != r.backupDir {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 
-		if _, err := os.Stat(emlToMetadataFilename(emlPath)); errors.Is(err, os.ErrNotExist) {
-			logrus.WithField("path", emlPath).Warn("Skipping EML file with no associated metadata file.")
+		// Only process metadata files
+		if !strings.HasSuffix(path, jsonMetadataExtension) {
 			return nil
 		}
+
+		// Convert metadata path to a synthetic EML path for compatibility with existing callers.
+		// Note: The EML file may not exist on disk for messages that failed to assemble
+		// (stored as directories with body/attachment files instead).
+		emlPath := strings.TrimSuffix(path, jsonMetadataExtension) + emlExtension
 
 		fn(emlPath)
 
